@@ -14,12 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
-LIBS=-lpng
+LIBS:=$(shell pkg-config --libs libpng)
+CFLAGS:=$(shell pkg-config --cflags libpng)
 TARGET=png2gfx
-OPTS=-O
 
 $(TARGET): $(TARGET).c
-	$(CC) $(OPTS) -o $(TARGET) $(TARGET).c $(LIBS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c $(LIBS)
 
 clean:
 	-rm -f $(TARGET) core
