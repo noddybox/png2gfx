@@ -21,6 +21,8 @@
 
 #include <png.h>
 
+#define HEADER_SIZE (8)
+
 static const char *Basename(const char *p)
 {
     const char *base = strrchr(p, '/');
@@ -39,12 +41,51 @@ int main(int argc, char *argv[])
     }
 
     FILE *in;
+    unsigned char header[HEADER_SIZE];
 
     if (!(in = fopen(argv[1], "rb")))
     {
     	perror(argv[1]);
 	return EXIT_FAILURE;
     }
+
+    if (fread(header, 1, HEADER_SIZE, in) != HEADER_SIZE)
+    {
+    	fprintf(stderr, "%s: unable to read header from '%s'\n", base, argv[1]);
+	fclose(in);
+	return EXIT_FAILURE;
+    }
+
+    if (png_sig_cmp(header, 0, HEADER_SIZE))
+    {
+    	fprintf(stderr, "%s: '%s' not a PNG file\n", base, argv[1]);
+	fclose(in);
+	return EXIT_FAILURE;
+    }
+
+    png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING,
+					     NULL, NULL, NULL);
+
+    if (!png)
+    {
+    	fprintf(stderr, "%s: unable to allocate PNG structures\n", base);
+	fclose(in);
+	return EXIT_FAILURE;
+    }
+
+    png_infop info = png_create_info_struct(png);
+
+    if (!info)
+    {
+    	fprintf(stderr, "%s: unable to allocate PNG structures\n", base);
+	fclose(in);
+	return EXIT_FAILURE;
+    }
+
+    png_init_io(png, in);
+    png_set_sig_bytes(png, HEADER_SIZE);
+
+    png_read_png(png, info, PNG_TRANSFORM_EXPAND, NULL);
 
     FILE *out;
 
@@ -53,13 +94,6 @@ int main(int argc, char *argv[])
     	perror(argv[2]);
 	return EXIT_FAILURE;
     }
-
-    png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING,
-					     NULL, NULL, NULL);
-    png_infop info = png_create_info_struct(png);
-
-    png_init_io(png, in);
-    png_read_png(png, info, PNG_TRANSFORM_EXPAND, NULL);
 
     return EXIT_SUCCESS;
 }

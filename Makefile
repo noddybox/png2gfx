@@ -22,4 +22,4 @@ $(TARGET): $(TARGET).c
 	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c $(LIBS)
 
 clean:
-	-rm -f $(TARGET) core $(TARGET).dSYM
+	-rm -rf $(TARGET) core $(TARGET).dSYM
