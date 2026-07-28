@@ -15,11 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 LIBS:=$(shell pkg-config --libs libpng)
-CFLAGS:=$(shell pkg-config --cflags libpng)
+CFLAGS:=-g $(shell pkg-config --cflags libpng)
 TARGET=png2gfx
 
 $(TARGET): $(TARGET).c
 	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c $(LIBS)
 
 clean:
-	-rm -f $(TARGET) core
+	-rm -f $(TARGET) core $(TARGET).dSYM

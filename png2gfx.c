@@ -16,10 +16,50 @@
 */
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 
 #include <png.h>
 
+static const char *Basename(const char *p)
+{
+    const char *base = strrchr(p, '/');
+
+    return base ? base + 1 : p;
+}
+
 int main(int argc, char *argv[])
 {
+    const char *base = Basename(argv[0]);
+
+    if (argc != 3)
+    {
+    	fprintf(stderr, "%s: usage %s input_file output_file\n", base, base);
+	return EXIT_FAILURE;
+    }
+
+    FILE *in;
+
+    if (!(in = fopen(argv[1], "rb")))
+    {
+    	perror(argv[1]);
+	return EXIT_FAILURE;
+    }
+
+    FILE *out;
+
+    if (!(out = fopen(argv[2], "wb")))
+    {
+    	perror(argv[2]);
+	return EXIT_FAILURE;
+    }
+
+    png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING,
+					     NULL, NULL, NULL);
+    png_infop info = png_create_info_struct(png);
+
+    png_init_io(png, in);
+    png_read_png(png, info, PNG_TRANSFORM_EXPAND, NULL);
+
     return EXIT_SUCCESS;
 }
