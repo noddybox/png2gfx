@@ -1,6 +1,8 @@
 # png2gfx
-A converter for PNG to the simple bitmap format used by espec and ezx81.  The
-format is best explained with this comment.
+A converter for PNG to the simple bitmap format used by espec and ezx81 and
+from the bitmap format to PNG.
+
+The format is best explained with this comment.
 
 ```
 /* Draws a simply compressed bitmap.  The data is in the form (where b is a
@@ -14,3 +16,4 @@ format is best explained with this comment.
 ```
 
 Usage: `png2gfx input.png outfile`
+Usage: `png2gfx -c width height infile input.png`
