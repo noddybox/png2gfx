@@ -103,8 +103,8 @@ int main(int argc, char *argv[])
 
     fclose(in);
 
-    int width;
-    int height;
+    png_uint_32 width;
+    png_uint_32 height;
     int depth;
     int colour_type;
 
