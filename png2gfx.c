@@ -288,24 +288,25 @@ static int ConvertToPNG(const char *input, const char *output,
 
     unsigned char *writer = source;
     unsigned char last = 0;
+    unsigned char pix = 0;
 
     while(len && !feof(in))
     {
     	unsigned char b = fgetc(in);
 
-	if (b > 0x7f)
+	if (b < 0x80)
 	{
-	    for(int f = 0; len && f < b - 0x81; f++)
-	    {
-	    	*writer++ = last;
-		len--;
-	    }
+	    pix = b;
+	    *writer++ = pix;
+	    len--;
 	}
 	else
 	{
-	    *writer++ = b;
-	    len--;
-	    last = b;
+	    for(int f = 0; len && f < b - 0x80; f++)
+	    {
+	    	*writer++ = pix;
+		len--;
+	    }
 	}
     }
 
