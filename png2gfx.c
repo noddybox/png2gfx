@@ -22,12 +22,12 @@
 
 #include <png.h>
 
-#define NO_BMPIX 9
+#include "gfx-bitmap.h"
 
 static struct
 {
     int         r,g,b;
-} bmpix[NO_BMPIX]=
+} bmpix[eGFX_Num_Colours]=
 {
     {0x00,0x00,0x00},        /* BLACK */
     {0x00,0x00,0xff},        /* BLUE */
@@ -39,16 +39,6 @@ static struct
     {0xff,0xff,0xff},        /* WHITE */
     {0x60,0x60,0x60},        /* GREY */
 };
-
-#define BLACK	0
-#define BLUE	1
-#define RED	2
-#define MAGENTA	3
-#define GREEN	4
-#define CYAN	5
-#define YELLOW	6
-#define WHITE	7
-#define GREY	8
 
 #define HEADER_SIZE (8)
 
@@ -137,16 +127,20 @@ static int ConvertFromPNG(const char *input, const char *output)
 
     png_bytepp rows = png_get_rows(png, info);
 
-    unsigned char *dest = malloc(width * height);
+    GFX_Bitmap bitmap = {0};
 
-    if (!dest)
+    bitmap.width = width;
+    bitmap.height = height;
+    bitmap.data = malloc(width * height);
+
+    if (!bitmap.data)
     {
     	fprintf(stderr, "%s: failed to allocate buffer for destination image\n",
 				name);
 	return EXIT_FAILURE;
     }
 
-    unsigned char *writer = dest;
+    uint8_t *writer = bitmap.data;
 
     for(int y = 0; y < height; y++)
     {
@@ -158,45 +152,45 @@ static int ConvertFromPNG(const char *input, const char *output)
 	    g = rows[y][x * 3 + 1];
 	    b = rows[y][x * 3 + 2];
 
-	    unsigned char bmp_pix = 0;
+	    GFX_Bitmap_Colour bmp_pix = eGFX_Black;
 
 	    if (r == 0 && g == 0 && b > 0)
 	    {
-	    	bmp_pix = BLUE;
+	    	bmp_pix = eGFX_Blue;
 	    }
 	    else if (r > 0 && g == 0 && b == 0)
 	    {
-	    	bmp_pix = RED;
+	    	bmp_pix = eGFX_Red;
 	    }
 	    else if (r > 0 && g == 0 && b > 0)
 	    {
-	    	bmp_pix = MAGENTA;
+	    	bmp_pix = eGFX_Magenta;
 	    }
 	    else if (r == 0 && g > 0 && b == 0)
 	    {
-	    	bmp_pix = GREEN;
+	    	bmp_pix = eGFX_Green;
 	    }
 	    else if (r == 0 && g > 0 && b > 0)
 	    {
-	    	bmp_pix = CYAN;
+	    	bmp_pix = eGFX_Cyan;
 	    }
 	    else if (r > 0 && g > 0 && b == 0)
 	    {
-	    	bmp_pix = YELLOW;
+	    	bmp_pix = eGFX_Yellow;
 	    }
 	    else if (r == g && g == b)
 	    {
 		if (r < 0x20)
 		{
-		    bmp_pix = BLACK;
+		    bmp_pix = eGFX_Black;
 		}
 		else if (r > 0xa0)
 		{
-		    bmp_pix = WHITE;
+		    bmp_pix = eGFX_White;
 		}
 		else
 		{
-		    bmp_pix = GREY;
+		    bmp_pix = eGFX_Grey;
 		}
 	    }
 
@@ -212,54 +206,25 @@ static int ConvertFromPNG(const char *input, const char *output)
 	return EXIT_FAILURE;
     }
 
-    unsigned char *reader = dest;
-    int len = width * height;
-    int count = 0;
-    unsigned char last = UCHAR_MAX;
+    uint8_t *encoded = NULL;
+    size_t len = 0;
 
-    while(len--)
+    GFX_Bitmap_Status status = GFX_Bitmap_Encode(&bitmap, &encoded, &len);
+
+    if (status == eGFX_Ok)
     {
-    	if (last == *reader)
-	{
-	    if (count < 0x7f)
-	    {
-	    	count++;
-	    }
-	    else
-	    {
-	    	fputc(0x80 + count, out);
-	    	fputc(last, out);
-		count = 0;
-	    }
-	}
-	else
-	{
-	    if (count > 0)
-	    {
-	    	fputc(0x80 + count, out);
-		count = 0;
-	    }
-
-	    fputc(*reader, out);
-	}
-
-	last = *reader++;
-    }
-
-    if (count > 0)
-    {
-	fputc(0x80 + count, out);
+    	fwrite(encoded, sizeof(uint8_t), len, out);
+	free(encoded);
     }
 
     fclose(out);
 
-    free(dest);
+    free(bitmap.data);
 
-    return EXIT_SUCCESS;
+    return status == eGFX_Ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-static int ConvertToPNG(const char *input, const char *output,
-			int width, int height)
+static int ConvertToPNG(const char *input, const char *output)
 {
     FILE *in;
     unsigned char header[HEADER_SIZE];
@@ -270,55 +235,58 @@ static int ConvertToPNG(const char *input, const char *output,
 	return EXIT_FAILURE;
     }
 
-    int len = width * height;
-    unsigned char *source = malloc(len);
-    png_bytepp row_pointers = malloc(height * sizeof *row_pointers);
+    fseek(in, 0, SEEK_END);
+    long source_len = ftell(in);
+    fseek(in, 0, SEEK_SET);
 
-    if (!source || !row_pointers)
+    uint8_t *source_data = malloc(source_len);
+
+    if (!source_data)
     {
     	fprintf(stderr, "%s: failed to allocate buffer for source image\n",
 				name);
 	return EXIT_FAILURE;
     }
 
-    for(int f = 0; f < height; f++)
+    fread(source_data, sizeof(uint8_t), source_len, in);
+    fclose(in);
+
+    GFX_Bitmap bitmap = {0};
+
+    GFX_Bitmap_Status status =
+    	GFX_Bitmap_Decode(source_data, source_len, &bitmap);
+
+    free(source_data);
+
+    switch(GFX_Bitmap_Decode(source_data, source_len, &bitmap))
     {
-    	row_pointers[f] = source + f * width;
+    	case eGFX_InvalidFile:
+	    fprintf(stderr, "%s: invalid GFX file\n", name);
+	    return EXIT_FAILURE;
+
+    	case eGFX_AllocFailed:
+	    fprintf(stderr, "%s: failed to allocate memory for GFX file\n",
+	    				name);
+	    return EXIT_FAILURE;
+
+	default:
+	    break;
     }
 
-    unsigned char *writer = source;
-    unsigned char last = 0;
-    unsigned char pix = 0;
+    png_bytepp row_pointers = malloc(bitmap.height * sizeof *row_pointers);
 
-    while(len && !feof(in))
+    if (!row_pointers)
     {
-    	unsigned char b = fgetc(in);
-
-	if (b < 0x80)
-	{
-	    pix = b;
-	    *writer++ = pix;
-	    len--;
-	}
-	else
-	{
-	    for(int f = 0; len && f < b - 0x80; f++)
-	    {
-	    	*writer++ = pix;
-		len--;
-	    }
-	}
-    }
-
-    if (len)
-    {
-    	fprintf(stderr, "%s: source bitmap file too short\n", name);
-	fclose(in);
-	free(source);
+    	fprintf(stderr, "%s: failed to allocate buffer for source image\n",
+				name);
+	free(bitmap.data);
 	return EXIT_FAILURE;
     }
 
-    fclose(in);
+    for(int f = 0; f < bitmap.height; f++)
+    {
+    	row_pointers[f] = bitmap.data + f * bitmap.width;
+    }
 
     FILE *out;
 
@@ -349,20 +317,21 @@ static int ConvertToPNG(const char *input, const char *output,
 
     png_init_io(png, out);
 
-    png_set_IHDR(png, info, width, height, 8, PNG_COLOR_TYPE_PALETTE,
+    png_set_IHDR(png, info, bitmap.width, bitmap.height,
+    		 8, PNG_COLOR_TYPE_PALETTE,
     		 PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_BASE,
 		 PNG_FILTER_TYPE_BASE);
 
-    png_color *palette = png_malloc(png, NO_BMPIX * sizeof(png_color));
+    png_color *palette = png_malloc(png, eGFX_Num_Colours * sizeof(png_color));
 
-    for(int f = 0; f < NO_BMPIX; f++)
+    for(int f = 0; f < eGFX_Num_Colours; f++)
     {
     	palette[f].red = bmpix[f].r;
     	palette[f].green = bmpix[f].g;
     	palette[f].blue = bmpix[f].b;
     }
 
-    png_set_PLTE(png, info, palette, NO_BMPIX);
+    png_set_PLTE(png, info, palette, eGFX_Num_Colours);
 
     png_write_info(png, info);
     png_write_image(png, row_pointers);
@@ -374,7 +343,6 @@ static int ConvertToPNG(const char *input, const char *output,
 
     fclose(out);
 
-    free(source);
     free(row_pointers);
 
     return EXIT_SUCCESS;
@@ -383,7 +351,7 @@ static int ConvertToPNG(const char *input, const char *output,
 static void Usage(void)
 {
     fprintf(stderr, "%s: usage %s input_png_file output_file\n", name, name);
-    fprintf(stderr, "%s: usage %s -c width height input_file output_png_file\n",
+    fprintf(stderr, "%s: usage %s -r input_file output_png_file\n",
     				name, name);
 }
 
@@ -391,25 +359,15 @@ int main(int argc, char *argv[])
 {
     name = Basename(argv[0]);
 
-    if (argc > 1 && strcmp(argv[1], "-c") == 0)
+    if (argc > 1 && strcmp(argv[1], "-r") == 0)
     {
-	if (argc != 6)
+	if (argc != 4)
 	{
 	    Usage();
 	    return EXIT_FAILURE;
 	}
 
-	int width = atoi(argv[2]);
-	int height = atoi(argv[3]);
-
-	if (width < 1 || height < 1)
-	{
-	    fprintf(stderr, "%s: invalid size %dx%d\n", name, width, height);
-	    return EXIT_FAILURE;
-	}
-
-	return ConvertToPNG(argv[4], argv[5], width, height);
-
+	return ConvertToPNG(argv[2], argv[3]);
     }
     else
     {

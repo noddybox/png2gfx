@@ -15,11 +15,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 LIBS:=$(shell pkg-config --libs libpng)
-CFLAGS:=-g $(shell pkg-config --cflags libpng)
+CFLAGS:=-g $(shell pkg-config --cflags libpng) -I gfx-bitmap
 TARGET=png2gfx
+GFX_BITMAP=gfx-bitmap/gfx-bitmap.c
 
-$(TARGET): $(TARGET).c
-	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c $(LIBS)
+$(TARGET): $(TARGET).c $(GFX_BITMAP)
+	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c $(GFX_BITMAP) $(LIBS)
 
 clean:
 	-rm -rf $(TARGET) core $(TARGET).dSYM

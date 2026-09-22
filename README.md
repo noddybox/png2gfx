@@ -2,18 +2,15 @@
 A converter for PNG to the simple bitmap format used by espec and ezx81 and
 from the bitmap format to PNG.
 
-The format is best explained with this comment.
+# GFX Format
 
-```
-/* Draws a simply compressed bitmap.  The data is in the form (where b is a
-   byte from the stream):
+See https://github.com/noddybox/gfx-bitmap/blob/main/README.md for details
+on the GFX format.
 
-    	b < 0x80	Colour (0 Black, 1 Blue, 2 Red, 3 Magenta, 4 Green,
-				5 Cyan, 6 Yellow, 7 White, 8 Grey)
+# Usage
 
-	b >= 0x80	Repeat the last colour b-0x80 times.
-*/
-```
+To convert a PNG to a GFX bitmap:
+`png2gfx input.png outfile`
 
-Usage: `png2gfx input.png outfile`
-Usage: `png2gfx -c width height infile input.png`
+To convert a GFX bitmap to a PNG:
+`png2gfx -r infile input.png`

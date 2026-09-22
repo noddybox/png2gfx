@@ -1,0 +1,3 @@
+[submodule "gfx-bitmap"]
+	path = gfx-bitmap
+	url = git@github.com:noddybox/gfx-bitmap.git
