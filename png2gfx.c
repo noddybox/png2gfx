@@ -258,7 +258,7 @@ static int ConvertToPNG(const char *input, const char *output)
 
     free(source_data);
 
-    switch(GFX_Bitmap_Decode(source_data, source_len, &bitmap))
+    switch(status)
     {
     	case eGFX_InvalidFile:
 	    fprintf(stderr, "%s: invalid GFX file\n", name);
